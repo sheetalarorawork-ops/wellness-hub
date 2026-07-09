@@ -93,17 +93,34 @@ const topics = [
 ];
 
 export default function HealthWebsite() {
-  const [activeTab, setActiveTab] = useState('home');
+  const [selectedTopicId, setSelectedTopicId] = useState(null);
   const [searchQuery, setSearchQuery] = useState('');
 
   const filteredTopics = useMemo(() => {
-    if (!searchQuery) return topics;
-    return topics.filter((topic) =>
-      topic.title.toLowerCase().includes(searchQuery.toLowerCase())
+    const q = searchQuery.trim().toLowerCase();
+    if (!q) return topics;
+    return topics.filter(
+      (topic) =>
+        topic.title.toLowerCase().includes(q) ||
+        topic.sections.some(
+          (s) =>
+            s.subtitle.toLowerCase().includes(q) ||
+            s.content.toLowerCase().includes(q)
+        )
     );
   }, [searchQuery]);
 
-  const selectedTopic = topics.find((topic) => topic.id === activeTab);
+  const selectedTopic = useMemo(
+    () => topics.find((topic) => topic.id === selectedTopicId) || null,
+    [selectedTopicId]
+  );
+
+  const handleExploreClick = () => {
+    const grid = document.getElementById('topics-grid');
+    if (grid) {
+      grid.scrollIntoView({ behavior: 'smooth', block: 'start' });
+    }
+  };
 
   return (
     <div className="min-h-screen bg-gradient-to-b from-slate-50 to-white">
@@ -124,6 +141,7 @@ export default function HealthWebsite() {
               placeholder="Search topics..."
               value={searchQuery}
               onChange={(e) => setSearchQuery(e.target.value)}
+              aria-label="Search topics"
               className="w-full pl-10 pr-4 py-2 border border-slate-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-emerald-500"
             />
           </div>
@@ -131,7 +149,7 @@ export default function HealthWebsite() {
       </header>
 
       <main className="max-w-6xl mx-auto px-4 py-12">
-        {activeTab === 'home' && (
+        {!selectedTopic && (
           <div className="mb-12 bg-gradient-to-r from-emerald-50 to-teal-50 rounded-xl p-8 border border-emerald-200">
             <h2 className="text-4xl font-bold text-slate-900 mb-4">
               Your Complete Wellness Guide
@@ -140,7 +158,7 @@ export default function HealthWebsite() {
               Explore simple wellness topics, healthy foods, and natural ingredients.
             </p>
             <button
-              onClick={() => setActiveTab('home')}
+              onClick={handleExploreClick}
               className="px-6 py-2 bg-emerald-600 text-white rounded-lg font-semibold hover:bg-emerald-700 transition"
             >
               Explore All Topics
@@ -148,28 +166,51 @@ export default function HealthWebsite() {
           </div>
         )}
 
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6 mb-12">
+        <div
+          id="topics-grid"
+          className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6 mb-12"
+        >
           {filteredTopics.map((topic) => (
             <div
               key={topic.id}
-              onClick={() => setActiveTab(topic.id)}
-              className="bg-white border border-slate-200 rounded-lg p-6 cursor-pointer hover:shadow-lg hover:border-emerald-300 transition-all duration-200 group"
+              role="button"
+              tabIndex={0}
+              aria-label={`Open topic: ${topic.title}`}
+              onClick={() => setSelectedTopicId(topic.id)}
+              onKeyDown={(e) => {
+                if (e.key === 'Enter' || e.key === ' ') {
+                  e.preventDefault();
+                  setSelectedTopicId(topic.id);
+                }
+              }}
+              className="bg-white border border-slate-200 rounded-lg p-6 cursor-pointer hover:shadow-lg hover:border-emerald-300 transition-all duration-200 group focus:outline-none focus:ring-2 focus:ring-emerald-500"
             >
-              <div className="text-4xl mb-3">{topic.icon}</div>
+              <div className="text-4xl mb-3" aria-hidden="true">
+                {topic.icon}
+              </div>
               <h3 className="text-xl font-bold text-slate-900 mb-2 group-hover:text-emerald-600 transition">
                 {topic.title}
               </h3>
               <p className="text-sm text-slate-600 flex items-center gap-1">
-                Read more <ChevronRight className="w-4 h-4 group-hover:translate-x-1 transition" />
+                Read more{' '}
+                <ChevronRight className="w-4 h-4 group-hover:translate-x-1 transition" />
               </p>
             </div>
           ))}
         </div>
 
-        {activeTab !== 'home' && selectedTopic && (
+        {filteredTopics.length === 0 && (
+          <p className="text-center text-slate-500 py-12">
+            No topics found for &ldquo;{searchQuery}&rdquo;.
+          </p>
+        )}
+
+        {selectedTopic && (
           <div className="bg-white rounded-xl border border-slate-200 p-8">
             <div className="flex items-center gap-3 mb-6">
-              <span className="text-4xl">{selectedTopic.icon}</span>
+              <span className="text-4xl" aria-hidden="true">
+                {selectedTopic.icon}
+              </span>
               <h2 className="text-3xl font-bold text-slate-900">
                 {selectedTopic.title}
               </h2>
@@ -189,7 +230,7 @@ export default function HealthWebsite() {
             </div>
 
             <button
-              onClick={() => setActiveTab('home')}
+              onClick={() => setSelectedTopicId(null)}
               className="mt-8 px-6 py-3 bg-slate-200 text-slate-900 rounded-lg font-semibold hover:bg-slate-300 transition"
             >
               Back to Topics
